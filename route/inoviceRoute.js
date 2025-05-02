@@ -8,12 +8,20 @@ import {
 import { fetchInvoices } from "../controllers/invoiceControllers.js";
 
 const invoiceRouter = express.Router();
-const app = express();
 
-invoiceRouter.route("/invoice").post(createInvoice);
-invoiceRouter.route("/fetch-unit-invoice/:id").get(getInvoice);
-invoiceRouter.route("/update-invoice").post(updateInvoiceField);
-invoiceRouter.route("/delete-invoice").get(deleteInvoice);
+// Create new invoice
+invoiceRouter.post("/invoice", createInvoice);
 
+// Get all invoices
 invoiceRouter.get("/invoices", fetchInvoices);
+
+// Get single invoice
+invoiceRouter.get("/fetch-unit-invoice/:id", getInvoice);
+
+// Update invoice
+invoiceRouter.put("/invoice/:id", updateInvoiceField);
+
+// Delete invoice
+invoiceRouter.delete("/invoice/:id", deleteInvoice);
+
 export default invoiceRouter;
