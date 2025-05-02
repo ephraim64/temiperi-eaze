@@ -34,6 +34,19 @@ export const createInvoice = async (req, res) => {
       }
     }
 
+    // Calculate total amount if not provided
+    if (!invoiceData.totalAmount) {
+      invoiceData.totalAmount = invoiceData.items.reduce(
+        (sum, item) => sum + item.quantity * item.price,
+        0
+      );
+    }
+
+    // Calculate balance if amount paid is provided
+    if (invoiceData.amountPaid) {
+      invoiceData.balance = invoiceData.amountPaid - invoiceData.totalAmount;
+    }
+
     // Create and save the invoice
     const invoice = new InvoiceModel(invoiceData);
     await invoice.save();
@@ -148,6 +161,20 @@ export const updateInvoiceField = async (req, res) => {
       return res.status(400).json({
         message: "All provided fields are empty or invalid.",
       });
+    }
+
+    // Calculate new total amount if items are updated
+    if (nonEmptyFields.items) {
+      nonEmptyFields.totalAmount = nonEmptyFields.items.reduce(
+        (sum, item) => sum + item.quantity * item.price,
+        0
+      );
+    }
+
+    // Calculate balance if amount paid is updated
+    if (nonEmptyFields.amountPaid) {
+      const totalAmount = nonEmptyFields.totalAmount || originalInvoice.totalAmount;
+      nonEmptyFields.balance = nonEmptyFields.amountPaid - totalAmount;
     }
 
     // Validate items if they exist in the update
