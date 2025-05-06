@@ -1,9 +1,9 @@
 import Product from "../models/productModel.js";
 
-//get all products
+// Get all products
 export const getAllProducts = async (req, res) => {
   try {
-    const products = await Product.find({}).sort({ createdAt: -1 });
+    const products = await Product.find({}).sort({ lastUpdated: -1 }); // Changed createdAt to lastUpdated
     res.header("Access-Control-Allow-Origin", "*");
     res.header(
       "Access-Control-Allow-Headers",
@@ -17,19 +17,25 @@ export const getAllProducts = async (req, res) => {
     return res.status(200).json({ products });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ message: error });
+    return res.status(500).json({ message: error.message }); // Fixed error response
   }
 };
 
-//create products
+// Create products
 export const addProduct = async (req, res) => {
   try {
     console.log("Received body:", req.body); // Debug input
 
     const products = Array.isArray(req.body) ? req.body : [req.body];
 
+    // Validate price structure and add lastUpdated
+    const productsWithTimestamp = products.map((product) => ({
+      ...product,
+      lastUpdated: new Date(),
+    }));
+
     // Validate price structure
-    products.forEach((product) => {
+    productsWithTimestamp.forEach((product) => {
       if (
         !product.price ||
         typeof product.price !== "object" ||
@@ -40,7 +46,7 @@ export const addProduct = async (req, res) => {
       }
     });
 
-    const savedProducts = await Product.insertMany(products); // Insert multiple products
+    const savedProducts = await Product.insertMany(productsWithTimestamp); // Insert multiple products
     return res.status(201).json({ data: savedProducts });
   } catch (error) {
     console.log("Validation error:", error);
@@ -48,10 +54,10 @@ export const addProduct = async (req, res) => {
   }
 };
 
-//get a product
+// Get a product
 export const getProduct = async (req, res) => {};
 
-//update a product
+// Update a product (deduct quantity)
 export const updateProduct = async (req, res) => {
   try {
     // Extract product ID and quantity to deduct from the request body
@@ -75,7 +81,7 @@ export const updateProduct = async (req, res) => {
       return res.status(400).json({ message: "Insufficient product quantity" });
     }
 
-    // Deduct the quantity
+    // Deduct the quantity and set lastUpdated
     product.quantity -= quantityToDeduct;
 
     // Save the updated product
@@ -88,34 +94,37 @@ export const updateProduct = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: error.message });
   }
 };
 
-//controller to update specific fields of a product
-
+// Update specific fields of a product
 export const updateProductField = async (req, res) => {
   const { id } = req.query; // Get product ID from URL parameters
   const updates = req.body; // Get updates from request body
 
-  //check if Id is present
+  // Check if ID is present
   if (!id) {
-    return res.status(400).json({ message: "Id not provided" });
+    return res.status(400).json({ message: "ID not provided" });
   }
+
   // Check if updates were provided
   if (!updates || Object.keys(updates).length === 0) {
-    return res.status(400).json({ message: "No updates provided." });
+    return res.status(400).json({ message: "No updates provided" });
   }
 
   try {
     // Create an object for storing non-empty fields only
-    const nonEmptyFields = {};
+    const nonEmptyFields = {
+      ...updates,
+      lastUpdated: new Date(), // Always update the lastUpdated timestamp
+    };
 
     // Filter out empty or null fields
-    Object.keys(updates).forEach((key) => {
-      const value = updates[key];
-      if (value !== "" && value !== null && value !== undefined) {
-        nonEmptyFields[key] = value; // Add only non-empty values
+    Object.keys(nonEmptyFields).forEach((key) => {
+      const value = nonEmptyFields[key];
+      if (value === "" || value === null || value === undefined) {
+        delete nonEmptyFields[key]; // Remove empty or invalid values
       }
     });
 
@@ -123,7 +132,7 @@ export const updateProductField = async (req, res) => {
     if (Object.keys(nonEmptyFields).length === 0) {
       return res
         .status(400)
-        .json({ message: "All provided fields are empty or invalid." });
+        .json({ message: "All provided fields are empty or invalid" });
     }
 
     // Update product using filtered fields
@@ -136,23 +145,18 @@ export const updateProductField = async (req, res) => {
     // If no product was found, return error
     if (!updatedProduct) {
       console.log("No product was found");
-      return res.status(404).json({ message: "Product not found." });
+      return res.status(404).json({ message: "Product not found" });
     }
 
     // Respond with the updated product
     return res.status(200).json(updatedProduct);
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ message: "Server error while updating product." });
+    return res.status(500).json({ message: error.message }); // Fixed error response
   }
 };
 
-//handle delete of a single product
-// export const handleProductDelete = (req, res) => {
-//   const payload = req.params;
-// };
-
-//delete all products
+// Delete all products
 export const clearDatabase = async (req, res) => {
   try {
     // Delete all documents in the 'products' collection
@@ -160,32 +164,36 @@ export const clearDatabase = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "All products have been deleted successfully.",
+      message: "All products have been deleted successfully",
     });
   } catch (error) {
     console.error("Error clearing database:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Failed to clear database.",
+      message: "Failed to clear database",
       error: error.message,
     });
   }
 };
 
+// Delete a single product
 export const deleteProduct = async (req, res) => {
   const { id } = req.query;
 
   if (!id) {
-    return res
-      .status(400)
-      .json({ message: "There was no payload for the product id" });
+    return res.status(400).json({ message: "Product ID not provided" });
   }
 
-  //delete from the database
-  await Product.findByIdAndDelete({ _id: id });
-
-  //return a response to the client
-  return res.status(200).json({
-    message: "Product deleted successfully",
-  });
+  try {
+    const product = await Product.findByIdAndDelete(id); // Fixed syntax
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+    return res.status(200).json({
+      message: "Product deleted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: error.message });
+  }
 };
