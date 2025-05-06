@@ -18,6 +18,8 @@ const invoiceSchema = new mongoose.Schema(
       },
     ],
     totalAmount: { type: Number, required: true },
+    amountPaid: { type: Number, required: false, default: 0 },
+    balance: { type: Number, required: false, default: 0 },
     createdAt: { type: Date, default: () => Date.now(), required: false },
     productName: { type: String, required: false },
   },
