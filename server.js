@@ -17,6 +17,10 @@ import {
   updateProduct,
   updateProductField,
 } from "./controllers/productController.js";
+import chatRouter from './route/chatRoute.js';  // Import chat route
+import messageRouter from "./route/messageRoute.js"; // Import message route
+import { createServer } from 'http'; // Import http server
+import socketSetup from './SocketSetup/socketsetup.js';  // Import socket setup
 
 // Load environment variables
 config();
@@ -56,6 +60,8 @@ app.use("/temiperi", orderRouter);
 app.use("/temiperi", products);
 app.use("/temiperi", invoiceRouter);
 app.use("/temiperi", reportRouter);
+app.use("/temiperi/chat", chatRouter); // Use chat routes
+app.use("/temiperi/message", messageRouter); // Use message routes
 
 app.use("/product-update", updateProduct);
 app.use("/clear-products", clearDatabase);
@@ -70,6 +76,10 @@ app.get("/", (req, res) => {
   res.send("software is working");
 });
 
-app.listen(port, () => {
+const server = createServer(app);  //Create HTTP server
+
+socketSetup(server);   //Initialize socket.io
+
+server.listen(port, () => {  //Listen with HTTP server
   console.log(`app is listening on port ${port}`);
 });

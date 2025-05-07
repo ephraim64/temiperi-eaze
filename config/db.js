@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 export const connectDB = async () => {
   await mongoose
     .connect(
-      "mongodb://localhost:27017"
+      "mongodb://localhost:27017/temiperi"
     )
     .then(() => {
       console.log("DB connected");
